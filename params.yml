@@ -1,0 +1,17 @@
+dev:
+  wscat: "74yze3jc0f.execute-api.ap-southeast-1.amazonaws.com/dev"
+  post-wscat: "https://gasfkrgbt0.execute-api.ap-southeast-1.amazonaws.com/wscat"
+  db-name: "**********"
+  db-username: "*****"
+  db-password: "***********"
+  db-host: "@***********"
+  project: "real-time-chat"
+
+dev:
+  wscat: "74yze3jc0f.execute-api.ap-southeast-1.amazonaws.com/dev"
+  post-wscat: "https://gasfkrgbt0.execute-api.ap-southeast-1.amazonaws.com/wscat"
+  db-name: "********"
+  db-username: "*****"
+  db-password: "***********"
+  db-host: "@***********"
+  project: "real-time-chat"

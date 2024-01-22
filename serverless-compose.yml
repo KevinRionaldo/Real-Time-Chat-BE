@@ -1,0 +1,14 @@
+services:
+  #user-mgmt
+  # user-service:
+  #   path: user-stroomer-api
+
+  #wscat-service
+  wscat-service:
+    path: wscat-service
+
+  # chat-room-service:
+  #   path: database-mgmt-api/activity-api
+    # params: 
+    #   UserPoolClient: ${user-stroomer-api.cognitoAppClientName}
+    #   UserPoolId: ${user-stroomer-api.cognitoUserPoolName}

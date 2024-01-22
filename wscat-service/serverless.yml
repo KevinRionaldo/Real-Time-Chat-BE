@@ -1,0 +1,70 @@
+service: ${file(../service.yml):service}-wscat
+
+frameworkVersion: '3'
+
+params: ${file(../params.yml)}
+
+provider: 
+  name: aws
+  deploymentMethod: direct
+  region: ap-southeast-1
+  profile: ${file(../service.yml):profile}
+  runtime: nodejs18.x
+  stackName: ${self:service}-stack
+  memorySize: 256
+  timeout: 30
+  architecture: arm64
+  environment:
+    STAGE: ${opt:stage, self:provider.stage}
+    ENDPOINT: ${param:wscat}
+    DB_USER: ${param:db-username}
+    DB_NAME: ${param:db-name}
+    DB_HOST: ${param:db-host}
+    DATABASE_URL: 
+      Fn::Join: 
+        - ''
+        - - "postgresql://"
+          - ${param:db-username}
+          - ":"
+          - ${param:db-password}
+          - ${param:db-host}
+          - ${param:db-name}
+          - "?sslmode=verify-full"
+
+package:
+  patterns:
+    - "!layerSourceTarball.tar.gz"
+
+layers:
+  RealTimeChatCommonLibrary:
+    path: ../common-library
+  RealTimeChatNpmLibrary:
+    path: ../npm-library
+
+functions:
+  wscat-listener:
+    handler: src/websocket.handler
+    layers:
+      - !Ref RealTimeChatCommonLibraryLambdaLayer
+      - !Ref RealTimeChatNpmLibraryLambdaLayer
+    events:
+      - websocket:
+          route: $connect
+      - websocket:
+          route: routeA
+      - websocket:
+          route: $default
+      - websocket:
+          route: $disconnect
+  wscat-post:
+    handler: src/websocket.postwscat
+    layers:
+      - !Ref RealTimeChatCommonLibraryLambdaLayer
+      - !Ref RealTimeChatNpmLibraryLambdaLayer
+    events:
+      - httpApi:
+            method: POST
+            path: /wscat
+
+plugins:
+  - serverless-offline

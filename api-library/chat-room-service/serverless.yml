@@ -1,0 +1,131 @@
+service: ${file(../../service.yml):service}-chat-room
+
+# Framework version constraint (semver constraint): '3', '^2.33'
+frameworkVersion: '3'
+
+params: ${file(../../params.yml)}
+
+provider: 
+  name: aws
+  deploymentMethod: direct
+  region: ap-southeast-1
+  profile: ${file(../../service.yml):profile}
+  runtime: nodejs18.x
+  # stackName: ${self:service}-stack
+  stage: ${opt:stage, self:provider.stage}
+  memorySize: 256
+  timeout: 30
+  architecture: arm64
+  environment:
+    POST_WSCAT: ${param:post-wscat}
+    STAGE: ${opt:stage, self:provider.stage}
+    DB_USER: ${param:db-username}
+    DB_NAME: ${param:db-name}
+    DATABASE_URL: 
+      Fn::Join: 
+        - ''
+        - - "postgresql://"
+          - ${param:db-username}
+          - ":"
+          - ${param:db-password}
+          - ${param:db-host}
+          - ${param:db-name}
+          - "?sslmode=verify-full"
+
+  # httpApi:
+  #   cors: true
+  #   authorizers:
+  #     someJwtAuthorizer:
+  #       type: jwt
+  #       identitySource: $request.header.Authorization
+  #       issuerUrl: https://cognito-idp.${opt:region, self:provider.region}.amazonaws.com/${param:UserPoolId}
+  #       audience: 
+  #         - '${param:UserPoolClient}'
+
+package:
+  patterns:
+    - "!layerSourceTarball.tar.gz"
+
+layers:
+  realTimeChatCommonLibrary:
+    path: ../common-library
+  realTimeChatNpmLibrary:
+    path: ../npm-library
+
+functions:
+#customer
+  get-chat-room:
+    handler: src/chat-room.get
+    layers:
+      - !Ref realTimeChatCommonLibraryLayer
+      - !Ref realTimeChatNpmLibraryLayer
+    events:
+      - httpApi:
+            method: GET
+            path: /chat-room
+            cors: true
+            # authorizer:
+            #   name: someJwtAuthorizer
+  get-chat-room-by-id:
+    handler: src/chat-room..getById
+    layers:
+      - !Ref realTimeChatCommonLibraryLayer
+      - !Ref realTimeChatNpmLibrary
+    events:
+      - httpApi:
+            method: GET
+            path: /chat-room/{id}
+            cors: true
+            # authorizer:
+            #   name: someJwtAuthorizer
+  create-chat-room:
+    handler: src/chat-room.create
+    layers:
+      - !Ref realTimeChatCommonLibraryLayer
+      - !Ref realTimeChatNpmLibrary
+    events:
+      - httpApi:
+            method: POST
+            path: /chat-room
+            cors: true
+            # authorizer:
+            #   name: someJwtAuthorizer
+  update-chat-room:
+    handler: src/chat-room.update
+    layers:
+      - !Ref realTimeChatCommonLibraryLayer
+      - !Ref realTimeChatNpmLibrary
+    events:
+      - httpApi:
+            method: PUT
+            path: /chat-room/{id}
+            cors: true
+            # authorizer:
+            #   name: someJwtAuthorizer
+  delete-chat-room:
+    handler: src/chat-room.delete
+    layers:
+      - !Ref realTimeChatCommonLibraryLayer
+      - !Ref realTimeChatNpmLibrary
+    events:
+      - httpApi:
+            method: DELETE
+            path: /chat-room/{id}
+            cors: true
+            # authorizer:
+            #   name: someJwtAuthorizer
+  count-chat-room:
+    handler: src/chat-room.count
+    layers:
+      - !Ref realTimeChatCommonLibraryLayer
+      - !Ref realTimeChatNpmLibrary
+    events:
+      - httpApi:
+            method: GET
+            path: /chat-room/count
+            cors: true
+            # authorizer:
+            #   name: someJwtAuthorizer
+
+plugins:
+  - serverless-offline

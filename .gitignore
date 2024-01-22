@@ -1,0 +1,14 @@
+# package directories
+node_modules/*
+npm-library/nodejs/node_modules
+jspm_packages
+
+# Serverless directories
+.serverless
+
+# except
+!node_modules/data-access.js
+!node_modules/logging.js
+!node_modules/response-lib.js
+
+.DS_STORE
