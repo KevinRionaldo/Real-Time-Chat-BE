@@ -1,9 +1,9 @@
 # sls cloud organizstion target
 org: hei
 # sls cloud app name
-app: chat-room-saas-app
+app: real-time-chat-saas-app
 # sls cloud service prefix name
-service: chat-room-be
+service: real-time-chat-be
 # default deployment to singapore
 region: ap-southeast-1
 # default deployment aws profile set to

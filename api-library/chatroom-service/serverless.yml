@@ -11,7 +11,7 @@ provider:
   region: ap-southeast-1
   profile: ${file(../../service.yml):profile}
   runtime: nodejs18.x
-  # stackName: ${self:service}-stack
+  # stackName: ${self:service}-stack-${opt:stage, self:provider.stage}
   stage: ${opt:stage, self:provider.stage}
   memorySize: 256
   timeout: 30
@@ -47,82 +47,69 @@ package:
     - "!layerSourceTarball.tar.gz"
 
 layers:
-  realTimeChatCommonLibrary:
-    path: ../common-library
-  realTimeChatNpmLibrary:
-    path: ../npm-library
+  RealTimeChatCommonLibrary:
+    path: ../../common-library
+  RealTimeChatNpmLibrary:
+    path: ../../npm-library
 
 functions:
-#customer
-  get-chat-room:
-    handler: src/chat-room.get
+  get-chatroom:
+    handler: src/chatroom.get
     layers:
-      - !Ref realTimeChatCommonLibraryLayer
-      - !Ref realTimeChatNpmLibraryLayer
+      - !Ref RealTimeChatCommonLibraryLambdaLayer
+      - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: GET
-            path: /chat-room
+            path: /chatroom
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer
-  get-chat-room-by-id:
-    handler: src/chat-room..getById
+  count-chatroom:
+    handler: src/chatroom.count
     layers:
-      - !Ref realTimeChatCommonLibraryLayer
-      - !Ref realTimeChatNpmLibrary
+      - !Ref RealTimeChatCommonLibraryLambdaLayer
+      - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: GET
-            path: /chat-room/{id}
+            path: /chatroom/count
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer
-  create-chat-room:
-    handler: src/chat-room.create
+  create-chatroom:
+    handler: src/chatroom.create
     layers:
-      - !Ref realTimeChatCommonLibraryLayer
-      - !Ref realTimeChatNpmLibrary
+      - !Ref RealTimeChatCommonLibraryLambdaLayer
+      - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: POST
-            path: /chat-room
+            path: /chatroom
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer
-  update-chat-room:
-    handler: src/chat-room.update
+  update-chatroom:
+    handler: src/chatroom.update
     layers:
-      - !Ref realTimeChatCommonLibraryLayer
-      - !Ref realTimeChatNpmLibrary
+      - !Ref RealTimeChatCommonLibraryLambdaLayer
+      - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: PUT
-            path: /chat-room/{id}
+            path: /chatroom/{id}
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer
-  delete-chat-room:
-    handler: src/chat-room.delete
+  delete-chatroom:
+    handler: src/chatroom.delete
     layers:
-      - !Ref realTimeChatCommonLibraryLayer
-      - !Ref realTimeChatNpmLibrary
+      - !Ref RealTimeChatCommonLibraryLambdaLayer
+      - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: DELETE
-            path: /chat-room/{id}
-            cors: true
-            # authorizer:
-            #   name: someJwtAuthorizer
-  count-chat-room:
-    handler: src/chat-room.count
-    layers:
-      - !Ref realTimeChatCommonLibraryLayer
-      - !Ref realTimeChatNpmLibrary
-    events:
-      - httpApi:
-            method: GET
-            path: /chat-room/count
+            path: /chatroom/{id}
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer

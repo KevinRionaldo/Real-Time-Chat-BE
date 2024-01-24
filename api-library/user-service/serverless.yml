@@ -1,4 +1,4 @@
-service: ${file(../../service.yml):service}-message
+service: ${file(../../service.yml):service}-user
 
 # Framework version constraint (semver constraint): '3', '^2.33'
 frameworkVersion: '3'
@@ -53,66 +53,67 @@ layers:
     path: ../../npm-library
 
 functions:
-  get-message:
-    handler: src/message.get
+  get-user:
+    handler: src/user.get
     layers:
       - !Ref RealTimeChatCommonLibraryLambdaLayer
       - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: GET
-            path: /message
+            path: /user
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer
-  count-message:
-    handler: src/message.count
+  count-user:
+    handler: src/user.count
     layers:
       - !Ref RealTimeChatCommonLibraryLambdaLayer
       - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: GET
-            path: /count
+            path: /user/count
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer
-  create-message:
-    handler: src/message.create
+  create-user:
+    handler: src/user.create
     layers:
       - !Ref RealTimeChatCommonLibraryLambdaLayer
       - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: POST
-            path: /message
+            path: /user
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer
-  update-message:
-    handler: src/message.update
+  update-user:
+    handler: src/user.update
     layers:
       - !Ref RealTimeChatCommonLibraryLambdaLayer
       - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: PUT
-            path: /message/{id}
+            path: /user/{id}
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer
-  delete-message:
-    handler: src/message.delete
+  delete-user:
+    handler: src/user.delete
     layers:
       - !Ref RealTimeChatCommonLibraryLambdaLayer
       - !Ref RealTimeChatNpmLibraryLambdaLayer
     events:
       - httpApi:
             method: DELETE
-            path: /message/{id}
+            path: /user/{id}
             cors: true
             # authorizer:
             #   name: someJwtAuthorizer
+
 
 plugins:
   - serverless-offline

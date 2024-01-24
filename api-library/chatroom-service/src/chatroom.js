@@ -4,44 +4,36 @@ const initTable = require('init-table')
 const response = require('response-lib');
 const tableFields = require('table-fields');
 const dataMgmt = require('data-mgmt');
-const axios = require('axios');
-const wscatUrl = process.env.POST_WSCAT;
 
 let pool;
-const messageFields = tableFields.message();
+const chatRoomFields = tableFields.chatroom();
 const stage = process.env.STAGE;
 
 module.exports.get = async (event, context) => {
     console.log(event, context);
     initConnectionPool();
-    await initTable.message(pool, stage);
-
+    await initTable.chatroom(pool, stage);
+    
     let selectFilter = `WHERE id IS NOT NULL`;
     let selectValue = [];
 
     const params = event?.queryStringParameters;
 
     if (params?.filter) {
-        selectFilter = `WHERE (value ILIKE $1)`; selectValue.push(`%${params.filter}%`)
+        selectFilter = `WHERE (name ILIKE $1)`; selectValue.push(`%${params.filter}%`)
     }
 
-    if (params?.chatroom_id) {
-        selectValue.push(`%${params.filter}%`); selectFilter = ` AND chatroom_id = $${selectValue.length}`; 
+    if (params?.type) {
+        selectValue.push(`%${params.filter}%`); selectFilter = `WHERE (name ILIKE $${selectValue.length})`
     }
-
-    if (params?.user_id) {
-        selectValue.push(`%${params.filter}%`); selectFilter = ` AND user_id = $${selectValue.length}`; 
-    }
-
-    selectFilter += ` ORDER BY created_at desc`;
-
+    selectFilter += ` ORDER BY name`;
+    
     if (params?.page && params?.limit) {
         selectValue.push(`${Number(params.limit)}`, `${(Number(params.page) - 1) * Number(params.limit)}`);
         selectFilter += ` LIMIT $${selectValue.length - 1} OFFSET $${selectValue.length}`
     }
-    
     try {
-        let selectQry = await dataAccess.select(pool, stage, 'message', selectFilter, `*`, selectValue)
+        let selectQry = await dataAccess.select(pool, stage, 'chatroom', selectFilter, `*`, selectValue)
         selectQry = selectQry.rows;
 
         return response.generate(event, 200, selectQry);
@@ -54,19 +46,23 @@ module.exports.get = async (event, context) => {
 module.exports.count = async (event, context) => {
     console.log(event, context);
     initConnectionPool();
-    await initTable.message(pool, stage);
-
+    await initTable.chatroom(pool, stage);
+    
     let selectFilter = `WHERE id IS NOT NULL`;
     let selectValue = [];
 
     const params = event?.queryStringParameters;
 
     if (params?.filter) {
-        selectFilter = `WHERE (value ILIKE $1)`; selectValue.push(`%${params.filter}%`)
+        selectFilter = `WHERE (name ILIKE $1)`; selectValue.push(`%${params.filter}%`)
+    }
+
+    if (params?.type) {
+        selectValue.push(`%${params.filter}%`); selectFilter = `WHERE (name ILIKE $${selectValue.length})`
     }
 
     try {
-        let selectQry = await dataAccess.select(pool, stage, 'message', selectFilter, `*`, selectValue)
+        let selectQry = await dataAccess.select(pool, stage, 'chatroom', selectFilter, `*`, selectValue)
         selectQry = selectQry.rows;
 
         return response.generate(event, 200, selectQry);
@@ -88,10 +84,14 @@ module.exports.create = async (event, context) => {
     }
 
     const body = JSON.parse(event.body);
-    if (!body?.chatroom_id || !body?.user_id) {
-        return response.generate(event, 400, 'chatroom id or user id undefined, check both of them')
+    if (!body?.type) {
+        return response.generate(event, 400, 'chatroom type undefined')
     }
-    !body?.value ? body.value = '' : ''
+    body.type = dataMgmt.chatRoomTypesValidation(body.type);
+
+    if (body?.type === 'err') {
+        return response.generate(event, 400, 'chatroom type is not valid');
+    }
 
     try {
         //manage insert data customer
@@ -100,8 +100,8 @@ module.exports.create = async (event, context) => {
         const user = event?.requestContext?.authorizer?.jwt?.claims?.sub;
         user !== undefined ? insertData.created_by = user : '';
 
-        let insertParams = dataAccess.composeInsertParams(messageFields, insertData);
-        let insertQry = await dataAccess.insert(pool, insertParams.fields, insertParams.valuesTemplate, insertParams.values, stage, 'message', 'id', 'id');
+        let insertParams = dataAccess.composeInsertParams(chatRoomFields, insertData);
+        let insertQry = await dataAccess.insert(pool, insertParams.fields, insertParams.valuesTemplate, insertParams.values, stage, 'chatroom', 'id', 'id');
 
         //return error if result of query insert error
         if (insertQry?.error) {
@@ -109,14 +109,6 @@ module.exports.create = async (event, context) => {
         }
 
         insertData.id = insertQry.rows[0].id;
-
-        //manage websocket body
-        const wscatBody = {
-            object: 'message',
-            type: 'create',
-            data: insertData,
-        }
-        await axios.post(wscatUrl, wscatBody);
 
         return response.generate(event, 200, insertData);
     }
@@ -132,7 +124,7 @@ module.exports.delete = async (event, context) => {
 
     try {
         //delete query
-        let deleteQry = await dataAccess.delete(pool, stage, 'message', `where id = $1`, [event.pathParameters.id], '*')
+        let deleteQry = await dataAccess.delete(pool, stage, 'chatroom', `where id = $1`, [event.pathParameters.id], '*')
 
         if (deleteQry?.error) {
             throw (deleteQry.error?.detail ? deleteQry.error?.detail : deleteQry.error);
@@ -143,14 +135,6 @@ module.exports.delete = async (event, context) => {
         }
 
         const resultData = deleteQry.rows[0]
-
-        //manage websocket body
-        const wscatBody = {
-            object: 'message',
-            type: 'create',
-            data: resultData,
-        }
-        await axios.post(wscatUrl, wscatBody);
 
         return response.generate(event, 200, resultData);
     }
@@ -163,41 +147,33 @@ module.exports.delete = async (event, context) => {
 module.exports.update = async (event, context) => {
     console.log(event, context);
     initConnectionPool();
-
+  
     if (!event.body) {
-        return response.generate(event, 400, 'body is undefined')
+      return response.generate(event, 400, 'body is undefined')
     }
-
+  
     const body = JSON.parse(event.body);
 
     try {
-        const updateData = { id: event.pathParameters.id, ...body, updated_at: new Date().toISOString() }
-
-        const user = event?.requestContext?.authorizer?.jwt?.claims?.sub;
-        user !== undefined ? updateData.updated_by = user : '';
-
-        let updateParams = dataAccess.composeUpdateParams(messageFields, updateData, ['id']);
-        let updateQry = await dataAccess.update(pool, updateParams.fields, updateParams.keyParameter, updateParams.values, stage, 'message');
-
-        if (updateQry.error) {
-            return response.generate(event, 400, 'update error');
-        }
-
-        //manage websocket body
-        const wscatBody = {
-            object: 'message',
-            type: 'update',
-            data: updateData,
-        }
-        await axios.post(wscatUrl, wscatBody);
-
-        return response.generate(event, 200, updateData);
+      const data = { id: event.pathParameters.id, ...body, updated_at: new Date().toISOString() }
+      
+      const user = event?.requestContext?.authorizer?.jwt?.claims?.sub;
+      user !== undefined ? data.updated_by = user : '';
+  
+      let updateParams = dataAccess.composeUpdateParams(chatRoomFields, data, ['id']);
+      let updateQry = await dataAccess.update(pool, updateParams.fields, updateParams.keyParameter, updateParams.values, stage, 'chatroom');
+      
+      if (updateQry.error) {
+        return response.generate(event, 400, 'update error');
+      }
+  
+      return response.generate(event, 200, data);
     }
     catch (err) {
-        console.log(err)
-        return response.generate(event, 500, { error: `${err.message} ${err.stack}` });
+      console.log(err)
+      return response.generate(event, 500, { error: `${err.message} ${err.stack}` });
     }
-};
+  };
 
 const initConnectionPool = async () => {
     if (!pool) {

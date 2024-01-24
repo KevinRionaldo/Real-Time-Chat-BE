@@ -1,14 +1,26 @@
 services:
   #user-mgmt
-  # user-service:
-  #   path: user-stroomer-api
+  # user-mgmt-service:
+  #   path: user-mgmt-api
 
   #wscat-service
   wscat-service:
     path: wscat-service
 
-  # chat-room-service:
-  #   path: database-mgmt-api/activity-api
+  chatroom-service:
+    path: api-library/chatroom-service
     # params: 
-    #   UserPoolClient: ${user-stroomer-api.cognitoAppClientName}
-    #   UserPoolId: ${user-stroomer-api.cognitoUserPoolName}
+    #   UserPoolClient: ${user-mgmt-api.cognitoAppClientName}
+    #   UserPoolId: ${user-mgmt-api.cognitoUserPoolName}
+
+  message-service:
+    path: api-library/message-service
+    # params: 
+    #   UserPoolClient: ${user-mgmt-api.cognitoAppClientName}
+    #   UserPoolId: ${user-mgmt-api.cognitoUserPoolName}
+  
+  user-service:
+    path: api-library/user-service
+    # params: 
+    #   UserPoolClient: ${user-mgmt-api.cognitoAppClientName}
+    #   UserPoolId: ${user-mgmt-api.cognitoUserPoolName}

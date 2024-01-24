@@ -4,17 +4,15 @@ const initTable = require('init-table')
 const response = require('response-lib');
 const tableFields = require('table-fields');
 const dataMgmt = require('data-mgmt');
-const axios = require('axios');
-const wscatUrl = process.env.POST_WSCAT;
 
 let pool;
-const messageFields = tableFields.message();
+const userFields = tableFields.message();
 const stage = process.env.STAGE;
 
 module.exports.get = async (event, context) => {
     console.log(event, context);
     initConnectionPool();
-    await initTable.message(pool, stage);
+    await initTable.user(pool, stage);
 
     let selectFilter = `WHERE id IS NOT NULL`;
     let selectValue = [];
@@ -22,18 +20,14 @@ module.exports.get = async (event, context) => {
     const params = event?.queryStringParameters;
 
     if (params?.filter) {
-        selectFilter = `WHERE (value ILIKE $1)`; selectValue.push(`%${params.filter}%`)
+        selectFilter = `WHERE (name ILIKE $1 OR email ILIKE $1 OR user_name ILIKE $1 OR phone ILIKE $1)`; selectValue.push(`%${params.filter}%`)
     }
 
     if (params?.chatroom_id) {
         selectValue.push(`%${params.filter}%`); selectFilter = ` AND chatroom_id = $${selectValue.length}`; 
     }
 
-    if (params?.user_id) {
-        selectValue.push(`%${params.filter}%`); selectFilter = ` AND user_id = $${selectValue.length}`; 
-    }
-
-    selectFilter += ` ORDER BY created_at desc`;
+    selectFilter += ` ORDER BY name asc`;
 
     if (params?.page && params?.limit) {
         selectValue.push(`${Number(params.limit)}`, `${(Number(params.page) - 1) * Number(params.limit)}`);
@@ -41,7 +35,7 @@ module.exports.get = async (event, context) => {
     }
     
     try {
-        let selectQry = await dataAccess.select(pool, stage, 'message', selectFilter, `*`, selectValue)
+        let selectQry = await dataAccess.select(pool, stage, 'user', selectFilter, `*`, selectValue)
         selectQry = selectQry.rows;
 
         return response.generate(event, 200, selectQry);
@@ -54,7 +48,7 @@ module.exports.get = async (event, context) => {
 module.exports.count = async (event, context) => {
     console.log(event, context);
     initConnectionPool();
-    await initTable.message(pool, stage);
+    await initTable.user(pool, stage);
 
     let selectFilter = `WHERE id IS NOT NULL`;
     let selectValue = [];
@@ -62,11 +56,15 @@ module.exports.count = async (event, context) => {
     const params = event?.queryStringParameters;
 
     if (params?.filter) {
-        selectFilter = `WHERE (value ILIKE $1)`; selectValue.push(`%${params.filter}%`)
+        selectFilter = `WHERE (name ILIKE $1 OR email ILIKE $1 OR user_name ILIKE $1 OR phone ILIKE $1)`; selectValue.push(`%${params.filter}%`)
+    }
+
+    if (params?.chatroom_id) {
+        selectValue.push(`%${params.filter}%`); selectFilter = ` AND chatroom_id = $${selectValue.length}`; 
     }
 
     try {
-        let selectQry = await dataAccess.select(pool, stage, 'message', selectFilter, `*`, selectValue)
+        let selectQry = await dataAccess.select(pool, stage, 'user', selectFilter, `*`, selectValue)
         selectQry = selectQry.rows;
 
         return response.generate(event, 200, selectQry);
@@ -88,10 +86,9 @@ module.exports.create = async (event, context) => {
     }
 
     const body = JSON.parse(event.body);
-    if (!body?.chatroom_id || !body?.user_id) {
-        return response.generate(event, 400, 'chatroom id or user id undefined, check both of them')
+    if (!body?.chatroom_id) {
+        return response.generate(event, 400, 'chatroom id undefined')
     }
-    !body?.value ? body.value = '' : ''
 
     try {
         //manage insert data customer
@@ -100,8 +97,8 @@ module.exports.create = async (event, context) => {
         const user = event?.requestContext?.authorizer?.jwt?.claims?.sub;
         user !== undefined ? insertData.created_by = user : '';
 
-        let insertParams = dataAccess.composeInsertParams(messageFields, insertData);
-        let insertQry = await dataAccess.insert(pool, insertParams.fields, insertParams.valuesTemplate, insertParams.values, stage, 'message', 'id', 'id');
+        let insertParams = dataAccess.composeInsertParams(userFields, insertData);
+        let insertQry = await dataAccess.insert(pool, insertParams.fields, insertParams.valuesTemplate, insertParams.values, stage, 'user', 'id', 'id');
 
         //return error if result of query insert error
         if (insertQry?.error) {
@@ -109,14 +106,6 @@ module.exports.create = async (event, context) => {
         }
 
         insertData.id = insertQry.rows[0].id;
-
-        //manage websocket body
-        const wscatBody = {
-            object: 'message',
-            type: 'create',
-            data: insertData,
-        }
-        await axios.post(wscatUrl, wscatBody);
 
         return response.generate(event, 200, insertData);
     }
@@ -132,7 +121,7 @@ module.exports.delete = async (event, context) => {
 
     try {
         //delete query
-        let deleteQry = await dataAccess.delete(pool, stage, 'message', `where id = $1`, [event.pathParameters.id], '*')
+        let deleteQry = await dataAccess.delete(pool, stage, 'user', `where id = $1`, [event.pathParameters.id], '*')
 
         if (deleteQry?.error) {
             throw (deleteQry.error?.detail ? deleteQry.error?.detail : deleteQry.error);
@@ -143,14 +132,6 @@ module.exports.delete = async (event, context) => {
         }
 
         const resultData = deleteQry.rows[0]
-
-        //manage websocket body
-        const wscatBody = {
-            object: 'message',
-            type: 'create',
-            data: resultData,
-        }
-        await axios.post(wscatUrl, wscatBody);
 
         return response.generate(event, 200, resultData);
     }
@@ -176,20 +157,12 @@ module.exports.update = async (event, context) => {
         const user = event?.requestContext?.authorizer?.jwt?.claims?.sub;
         user !== undefined ? updateData.updated_by = user : '';
 
-        let updateParams = dataAccess.composeUpdateParams(messageFields, updateData, ['id']);
-        let updateQry = await dataAccess.update(pool, updateParams.fields, updateParams.keyParameter, updateParams.values, stage, 'message');
+        let updateParams = dataAccess.composeUpdateParams(userFields, updateData, ['id']);
+        let updateQry = await dataAccess.update(pool, updateParams.fields, updateParams.keyParameter, updateParams.values, stage, 'user');
 
         if (updateQry.error) {
             return response.generate(event, 400, 'update error');
         }
-
-        //manage websocket body
-        const wscatBody = {
-            object: 'message',
-            type: 'update',
-            data: updateData,
-        }
-        await axios.post(wscatUrl, wscatBody);
 
         return response.generate(event, 200, updateData);
     }

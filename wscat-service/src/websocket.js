@@ -9,11 +9,12 @@ const { Pool } = require('pg');
 
 let pool;
 let endpoint = process.env.ENDPOINT;
-let org = process.env.STAGE
+const stage = process.env.STAGE
 
 module.exports.postwscat = async (event, context) => {
     console.log(event, context);
     initConnectionPool();
+    await initTable.websocket(pool, stage);
 
     if (!event.body) {
         return response.generate(event, 400, 'body undefined')
@@ -21,8 +22,11 @@ module.exports.postwscat = async (event, context) => {
 
     const body = JSON.parse(event.body);
 
-    const message = body?.message || ''
-    const chatroom_id = body?.chatroom_id || ''
+    if (!body?.object || !body?.type) {
+        return response.generate(event, 400, 'object or type undefined')
+    }
+    const message = body?.data?.message || ''
+    const chatroom_id = body?.data?.chatroom_id || ''
 
     try {
         let connections = await getAllConnections(chatroom_id);
@@ -59,7 +63,7 @@ async function sendMessage(url, connection_id, data) {
 }
 
 async function getAllConnections(chatroom_id) {
-    const result = await dataAccess.select(pool, org, 'websocket', `WHERE chatroom_id = $1`, 'connection_id', [chatroom_id]);
+    const result = await dataAccess.select(pool, stage, 'websocket', `WHERE chatroom_id = $1`, 'connection_id', [chatroom_id]);
 
     return result.rows;
 }
@@ -67,8 +71,7 @@ async function getAllConnections(chatroom_id) {
 exports.handler = async function (event, context) {
     console.log(event, context);
     initConnectionPool();
-
-    await initTable.websocket(pool, org, 'websocket');
+    await initTable.websocket(pool, stage);
 
     const routeKey = event.requestContext.routeKey;
     const connection_id = event.requestContext.connectionId;
@@ -81,11 +84,11 @@ exports.handler = async function (event, context) {
             if (!chatroom_id) {
                 return response.generate(event, 400, 'chatroom_id undefined')
             }
-            await dataAccess.insert(pool, 'connection_id, ttl, chatroom_id', '$1, $2, $3', [connection_id, new Date().toISOString(), chatroom_id], org, 'websocket');
+            await dataAccess.insert(pool, 'connection_id, ttl, chatroom_id', '$1, $2, $3', [connection_id, new Date().toISOString(), chatroom_id], stage, 'websocket');
             break;
 
         case '$disconnect':
-            await dataAccess.delete(pool, org, 'websocket', `WHERE connection_id = '${connection_id}'`);
+            await dataAccess.delete(pool, stage, 'websocket', `WHERE connection_id = '${connection_id}'`);
             break;
 
         case 'routeA':
