@@ -15,7 +15,7 @@ This project was generated with [Serverless Framework](https://www.serverless.co
 - Change the service.yml using service.[environment].yml (i.e. kevin, swafire, based on where you want to deploy the stack to)
 - Notice the db-schema in params.yml make sure it's target schema you want the api to read the databsse from
 - To deploy to target region, change in service.yml
-- Change the AWS credentials key and secret in ~/.aws/credentials default to deploy to target aws account
+- Change the AWS credentials key and secret in ~/.aws/credentials default to deploy to target aws account, or you can run **aws configure** and follow the instructions for change the AWS credentials key and secret 
 
 ## Usage
 
@@ -34,6 +34,7 @@ If you want to deploy only one specific stack [user-mgmt, wscat-service, chatroo
 $ sls wscat-service:deploy
 $ sls wscat-service:deploy --stage dev
 ```
+Because we use websocket in this project, you must install wscat-service first before you install all the microservices. Because we need the endpoint of wscat service and http post wscat. Set endpoint in params.yml and run **sls deploy --stage dev**
 
 ### Remove
 
