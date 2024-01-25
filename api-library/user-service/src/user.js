@@ -24,7 +24,7 @@ module.exports.get = async (event, context) => {
     }
 
     if (params?.chatroom_id) {
-        selectValue.push(`%${params.filter}%`); selectFilter = ` AND chatroom_id = $${selectValue.length}`; 
+        selectValue.push(params.chatroom_id); selectFilter += ` AND (chatroom_id = $${selectValue.length})`
     }
 
     selectFilter += ` ORDER BY name asc`;
@@ -60,14 +60,13 @@ module.exports.count = async (event, context) => {
     }
 
     if (params?.chatroom_id) {
-        selectValue.push(`%${params.filter}%`); selectFilter = ` AND chatroom_id = $${selectValue.length}`; 
+        selectValue.push(params.chatroom_id); selectFilter += ` AND (chatroom_id = $${selectValue.length})`
     }
 
     try {
-        let selectQry = await dataAccess.select(pool, stage, 'user', selectFilter, `*`, selectValue)
-        selectQry = selectQry.rows;
+        let selectQry = await dataAccess.select(pool, stage, 'user', selectFilter, `count(*)`, selectValue)
 
-        return response.generate(event, 200, selectQry);
+        return response.generate(event, 200, selectQry.rows[0].count);
     }
     catch (err) {
         console.log(err)
@@ -89,7 +88,7 @@ module.exports.create = async (event, context) => {
     if (!body?.chatroom_id) {
         return response.generate(event, 400, 'chatroom id undefined')
     }
-
+    body.phone ? body.phone = dataMgmt.formatPhone(body.phone) : '';
     try {
         //manage insert data customer
         const insertData = { id: '', ...body, created_at: currentTime, updated_at: currentTime };
@@ -151,6 +150,7 @@ module.exports.update = async (event, context) => {
 
     const body = JSON.parse(event.body);
 
+    body.phone ? body.phone = dataMgmt.formatPhone(body.phone) : '';
     try {
         const updateData = { id: event.pathParameters.id, ...body, updated_at: new Date().toISOString() }
 

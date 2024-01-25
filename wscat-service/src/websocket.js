@@ -4,12 +4,13 @@ const dataAccess = require('data-access');
 const initTable = require('init-table');
 const response = require('response-lib');
 const AWS = require('aws-sdk');
-
+const tableFields = require('table-fields');
 const { Pool } = require('pg');
 
 let pool;
 let endpoint = process.env.ENDPOINT;
-const stage = process.env.STAGE
+const stage = process.env.STAGE;
+const wscatFields = tableFields.websocket();
 
 module.exports.postwscat = async (event, context) => {
     console.log(event, context);
@@ -84,7 +85,7 @@ exports.handler = async function (event, context) {
             if (!chatroom_id) {
                 return response.generate(event, 400, 'chatroom_id undefined')
             }
-            await dataAccess.insert(pool, 'connection_id, ttl, chatroom_id', '$1, $2, $3', [connection_id, new Date().toISOString(), chatroom_id], stage, 'websocket');
+            await dataAccess.insert(pool, wscatFields.join(', '), '$1, $2, $3', [connection_id, new Date().toISOString(), chatroom_id], stage, 'websocket');
             break;
 
         case '$disconnect':

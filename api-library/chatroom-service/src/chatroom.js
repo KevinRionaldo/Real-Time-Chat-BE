@@ -24,7 +24,7 @@ module.exports.get = async (event, context) => {
     }
 
     if (params?.type) {
-        selectValue.push(`%${params.filter}%`); selectFilter = `WHERE (name ILIKE $${selectValue.length})`
+        selectValue.push(params.type); selectFilter += ` AND (type = $${selectValue.length})`
     }
     selectFilter += ` ORDER BY name`;
     
@@ -58,14 +58,13 @@ module.exports.count = async (event, context) => {
     }
 
     if (params?.type) {
-        selectValue.push(`%${params.filter}%`); selectFilter = `WHERE (name ILIKE $${selectValue.length})`
+        selectValue.push(params.type); selectFilter += ` AND (type = $${selectValue.length})`
     }
 
     try {
-        let selectQry = await dataAccess.select(pool, stage, 'chatroom', selectFilter, `*`, selectValue)
-        selectQry = selectQry.rows;
+        let selectQry = await dataAccess.select(pool, stage, 'chatroom', selectFilter, `count(*)`, selectValue)
 
-        return response.generate(event, 200, selectQry);
+        return response.generate(event, 200, selectQry.rows[0].count);
     }
     catch (err) {
         console.log(err)

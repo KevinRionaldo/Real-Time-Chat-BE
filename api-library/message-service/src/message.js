@@ -26,11 +26,11 @@ module.exports.get = async (event, context) => {
     }
 
     if (params?.chatroom_id) {
-        selectValue.push(`%${params.filter}%`); selectFilter = ` AND chatroom_id = $${selectValue.length}`; 
+        selectValue.push(params.chatroom_id); selectFilter += ` AND (chatroom_id = $${selectValue.length})`
     }
 
     if (params?.user_id) {
-        selectValue.push(`%${params.filter}%`); selectFilter = ` AND user_id = $${selectValue.length}`; 
+        selectValue.push(params.user_id); selectFilter += ` AND (user_id = $${selectValue.length})`
     }
 
     selectFilter += ` ORDER BY created_at desc`;
@@ -39,7 +39,7 @@ module.exports.get = async (event, context) => {
         selectValue.push(`${Number(params.limit)}`, `${(Number(params.page) - 1) * Number(params.limit)}`);
         selectFilter += ` LIMIT $${selectValue.length - 1} OFFSET $${selectValue.length}`
     }
-    
+
     try {
         let selectQry = await dataAccess.select(pool, stage, 'message', selectFilter, `*`, selectValue)
         selectQry = selectQry.rows;
@@ -66,10 +66,9 @@ module.exports.count = async (event, context) => {
     }
 
     try {
-        let selectQry = await dataAccess.select(pool, stage, 'message', selectFilter, `*`, selectValue)
-        selectQry = selectQry.rows;
+        let selectQry = await dataAccess.select(pool, stage, 'message', selectFilter, `count(*)`, selectValue)
 
-        return response.generate(event, 200, selectQry);
+        return response.generate(event, 200, selectQry.rows[0].count);
     }
     catch (err) {
         console.log(err)
