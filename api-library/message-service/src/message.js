@@ -179,9 +179,12 @@ module.exports.update = async (event, context) => {
         let updateQry = await dataAccess.update(pool, updateParams.fields, updateParams.keyParameter, updateParams.values, stage, 'message');
 
         if (updateQry.error) {
-            return response.generate(event, 400, 'update error');
+            throw (updateQry.error?.detail ? updateQry.error?.detail : updateQry.error);
         }
 
+        if (updateQry.rowCount == 0) {
+            throw ('id is not found')
+        }
         //manage websocket body
         const wscatBody = {
             object: 'message',
@@ -194,7 +197,7 @@ module.exports.update = async (event, context) => {
     }
     catch (err) {
         console.log(err)
-        return response.generate(event, 500, { error: `${err.message} ${err.stack}` });
+        return response.generate(event, 400, err);
     }
 };
 

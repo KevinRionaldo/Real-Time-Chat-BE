@@ -4,8 +4,8 @@ services:
   #   path: user-mgmt-api
 
   #wscat-service
-  # wscat-service:
-  #   path: wscat-service
+  wscat-service:
+    path: wscat-service
 
   chatroom-service:
     path: api-library/chatroom-service

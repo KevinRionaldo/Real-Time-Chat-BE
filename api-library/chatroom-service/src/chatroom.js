@@ -13,7 +13,7 @@ module.exports.get = async (event, context) => {
     console.log(event, context);
     initConnectionPool();
     await initTable.chatroom(pool, stage);
-    
+
     let selectFilter = `WHERE id IS NOT NULL`;
     let selectValue = [];
 
@@ -27,7 +27,7 @@ module.exports.get = async (event, context) => {
         selectValue.push(params.type); selectFilter += ` AND (type = $${selectValue.length})`
     }
     selectFilter += ` ORDER BY name`;
-    
+
     if (params?.page && params?.limit) {
         selectValue.push(`${Number(params.limit)}`, `${(Number(params.page) - 1) * Number(params.limit)}`);
         selectFilter += ` LIMIT $${selectValue.length - 1} OFFSET $${selectValue.length}`
@@ -47,7 +47,7 @@ module.exports.count = async (event, context) => {
     console.log(event, context);
     initConnectionPool();
     await initTable.chatroom(pool, stage);
-    
+
     let selectFilter = `WHERE id IS NOT NULL`;
     let selectValue = [];
 
@@ -146,33 +146,37 @@ module.exports.delete = async (event, context) => {
 module.exports.update = async (event, context) => {
     console.log(event, context);
     initConnectionPool();
-  
+
     if (!event.body) {
-      return response.generate(event, 400, 'body is undefined')
+        return response.generate(event, 400, 'body is undefined')
     }
-  
+
     const body = JSON.parse(event.body);
 
     try {
-      const data = { id: event.pathParameters.id, ...body, updated_at: new Date().toISOString() }
-      
-      const user = event?.requestContext?.authorizer?.jwt?.claims?.sub;
-      user !== undefined ? data.updated_by = user : '';
-  
-      let updateParams = dataAccess.composeUpdateParams(chatRoomFields, data, ['id']);
-      let updateQry = await dataAccess.update(pool, updateParams.fields, updateParams.keyParameter, updateParams.values, stage, 'chatroom');
-      
-      if (updateQry.error) {
-        return response.generate(event, 400, 'update error');
-      }
-  
-      return response.generate(event, 200, data);
+        const data = { id: event.pathParameters.id, ...body, updated_at: new Date().toISOString() }
+
+        const user = event?.requestContext?.authorizer?.jwt?.claims?.sub;
+        user !== undefined ? data.updated_by = user : '';
+
+        let updateParams = dataAccess.composeUpdateParams(chatRoomFields, data, ['id']);
+        let updateQry = await dataAccess.update(pool, updateParams.fields, updateParams.keyParameter, updateParams.values, stage, 'chatroom');
+
+        if (updateQry.error) {
+            throw (updateQry.error?.detail ? updateQry.error?.detail : updateQry.error);
+        }
+
+        if (updateQry.rowCount == 0) {
+            throw ('id is not found')
+        }
+
+        return response.generate(event, 200, data);
     }
     catch (err) {
-      console.log(err)
-      return response.generate(event, 500, { error: `${err.message} ${err.stack}` });
+        console.log(err)
+        return response.generate(event, 400, err);
     }
-  };
+};
 
 const initConnectionPool = async () => {
     if (!pool) {

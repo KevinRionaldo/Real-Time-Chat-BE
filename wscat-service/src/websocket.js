@@ -26,7 +26,6 @@ module.exports.postwscat = async (event, context) => {
     if (!body?.object || !body?.type) {
         return response.generate(event, 400, 'object or type undefined')
     }
-    const message = body?.data?.message || ''
     const chatroom_id = body?.data?.chatroom_id || ''
 
     try {
@@ -34,7 +33,7 @@ module.exports.postwscat = async (event, context) => {
 
         if (connections.length > 0) {
             await Promise.all(
-                connections.map(item => sendMessage(endpoint, item.connection_id, { message: message }))
+                connections.map(item => sendMessage(endpoint, item.connection_id, body))
             );
         }
         return response.generate(event, 200, connections)
@@ -80,27 +79,41 @@ exports.handler = async function (event, context) {
     const params = event?.queryStringParameters;
     const chatroom_id = params?.chatroom_id;
 
-    switch (routeKey) {
-        case '$connect':
-            if (!chatroom_id) {
-                return response.generate(event, 400, 'chatroom_id undefined')
-            }
-            await dataAccess.insert(pool, wscatFields.join(', '), '$1, $2, $3', [connection_id, new Date().toISOString(), chatroom_id], stage, 'websocket');
-            break;
+    try {
+        switch (routeKey) {
+            case '$connect':
+                if (!chatroom_id) {
+                    return response.generate(event, 400, 'chatroom_id undefined')
+                }
+                //manage insert data customer
+                const insertData = { connection_id: connection_id, ttl: new Date().toISOString(), chatroom_id: chatroom_id };
 
-        case '$disconnect':
-            await dataAccess.delete(pool, stage, 'websocket', `WHERE connection_id = '${connection_id}'`);
-            break;
+                let insertParams = dataAccess.composeInsertParams(wscatFields, insertData);
+                let insertQry = await dataAccess.insert(pool, insertParams.fields, insertParams.valuesTemplate, insertParams.values, stage, 'websocket');
+                //return error if result of query insert error
+                if (insertQry?.error) {
+                    throw (insertQry.error?.detail ? insertQry.error?.detail : insertQry.error);
+                }
+                break;
 
-        case 'routeA':
-            await sendMessage(endpoint, connection_id, { data: 'not found' });
-            break;
+            case '$disconnect':
+                await dataAccess.delete(pool, stage, 'websocket', `WHERE connection_id = '${connection_id}'`);
+                break;
 
-        case '$default':
-        default:
-            await sendMessage(endpoint, connection_id, { data: 'not found' });
+            case 'routeA':
+                await sendMessage(endpoint, connection_id, { data: 'not found' });
+                break;
+
+            case '$default':
+            default:
+                await sendMessage(endpoint, connection_id, { data: 'not found' });
+        }
+        return { statusCode: 200 };
+    } catch (error) {
+        console.log('error', error);
+        return response.generate(event, 400, error)
     }
-    return { statusCode: 200 };
+
 }
 
 const initConnectionPool = async () => {

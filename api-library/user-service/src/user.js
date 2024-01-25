@@ -6,7 +6,7 @@ const tableFields = require('table-fields');
 const dataMgmt = require('data-mgmt');
 
 let pool;
-const userFields = tableFields.message();
+const userFields = tableFields.user();
 const stage = process.env.STAGE;
 
 module.exports.get = async (event, context) => {
@@ -161,14 +161,18 @@ module.exports.update = async (event, context) => {
         let updateQry = await dataAccess.update(pool, updateParams.fields, updateParams.keyParameter, updateParams.values, stage, 'user');
 
         if (updateQry.error) {
-            return response.generate(event, 400, 'update error');
+            throw (updateQry.error?.detail ? updateQry.error?.detail : updateQry.error);
         }
 
+        if (updateQry.rowCount == 0) {
+            throw('id is not found')
+        }
+        
         return response.generate(event, 200, updateData);
     }
     catch (err) {
         console.log(err)
-        return response.generate(event, 500, { error: `${err.message} ${err.stack}` });
+        return response.generate(event, 400, err);
     }
 };
 
